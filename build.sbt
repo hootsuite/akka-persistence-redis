@@ -1,12 +1,14 @@
+import sbt._
 import Version._
+import Settings._
 
 name := "akka-persistence-redis"
 
 organization := "com.hootsuite"
 
-version := "0.1.0-SNAPSHOT"
+version := Version.project
 
-scalaVersion := "2.11.7"
+scalaVersion := Version.scala
 
 libraryDependencies ++= Seq(
   "com.typesafe.akka"    %% "akka-contrib" % Version.akka,
@@ -19,3 +21,5 @@ libraryDependencies ++= Seq(
 libraryDependencies ++= Seq(
   "com.typesafe.akka"    %% "akka-persistence-tck-experimental" % Version.akka % "test"
 )
+
+Settings.publishSettings
