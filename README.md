@@ -10,7 +10,12 @@ Deprecated methods since Akka 2.3.4 are NOT implemented. As a result, some tests
 Rest of methods are tested with the test harness included in this project.  
 
 ## Quick start guide
-### Installation 
+### Installation
+plugins.sbt
+```
+resolvers += Resolver.url("akka-persistence-redis", url("http://dl.bintray.com/ssongvan/maven"))(Resolver.ivyStylePatterns)
+```
+build.sbt
 ```
 libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.1.0")
 ```
