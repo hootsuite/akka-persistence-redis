@@ -4,7 +4,7 @@
 This is a plugin for Akka Persistence that uses Redis as backend.
  
 ## Compatibility
-This plugin was developed for Akka 2.3+ and Scala 2.11+
+This plugin was developed for Akka 2.3.x and Scala 2.11.x
 It uses [rediscala](https://github.com/etaty/rediscala), an asynchronous Redis client written with Akka and Scala.
 Deprecated methods since Akka 2.3.4 are NOT implemented. As a result, some tests in [TCK](http://doc.akka.io/docs/akka/snapshot/scala/persistence.html#Plugin_TCK) fail.
 Rest of methods are tested with the test harness included in this project.  
@@ -13,11 +13,11 @@ Rest of methods are tested with the test harness included in this project.
 ### Installation
 plugins.sbt
 ```
-resolvers += Resolver.url("akka-persistence-redis", url("http://dl.bintray.com/ssongvan/maven"))(Resolver.ivyStylePatterns)
+resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
 ```
 build.sbt
 ```
-libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.1.0")
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.2.0")
 ```
 ### Activation
 ```
@@ -25,6 +25,7 @@ akka.persistence.journal.plugin = "akka-persistence-redis.journal"
 akka.persistence.snapshot-store.plugin = "akka-persistence-redis.snapshot"
 ```
 ### Redis config
+From [rediscala](https://github.com/etaty/rediscala)
 ```
 redis {
   host = "localhost"
