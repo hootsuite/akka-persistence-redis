@@ -10,6 +10,8 @@ version := Version.project
 
 scalaVersion := Version.scala
 
+resolvers += Resolver.jcenterRepo
+
 libraryDependencies ++= Seq(
   "com.typesafe.akka"    %% "akka-contrib" % Version.akka,
   "com.etaty.rediscala"  %% "rediscala" % Version.rediscala,

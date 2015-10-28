@@ -3,6 +3,9 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.2.1
+- Add resolver for jcenter in build.sbt
+
 # 0.2.0
 - Bump rediscala version to 1.5.0
 - efc213 configure Redis from same config as the actor system

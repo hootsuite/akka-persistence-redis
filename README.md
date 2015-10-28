@@ -11,13 +11,10 @@ Rest of methods are tested with the test harness included in this project.
 
 ## Quick start guide
 ### Installation
-plugins.sbt
-```
-resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
-```
 build.sbt
 ```
-libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.2.0")
+resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.2.1")
 ```
 ### Activation
 ```
