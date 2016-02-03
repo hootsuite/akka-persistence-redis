@@ -64,6 +64,16 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
     }
   }
 
+  override def deleteAsync(metadata: SnapshotMetadata): Future[Unit] =
+    Future {
+      delete(metadata)
+    }
+
+  override def deleteAsync(persistenceId: String, criteria: SnapshotSelectionCriteria): Future[Unit] =
+    Future {
+      delete(persistenceId, criteria)
+    }
+
   /**
    * Plugin API: called after successful saving of a snapshot.
    *
@@ -89,6 +99,7 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
   def delete(persistenceId : String, criteria : SnapshotSelectionCriteria): Unit = {
     redis.zremrangebyscore(snapshotKey(persistenceId), Limit(-1L), Limit(criteria.maxSequenceNr))
   }
+
 }
 
 trait SnapshotExecutionContext {

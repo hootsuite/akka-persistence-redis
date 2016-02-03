@@ -2,20 +2,21 @@ package com.hootsuite.akka.persistence.redis.journal
 
 import akka.actor.ActorLogging
 import akka.persistence._
-import akka.persistence.journal.SyncWriteJournal
+import akka.persistence.journal.{AsyncWriteJournal}
 import com.hootsuite.akka.persistence.redis.{ByteArraySerializer, DefaultRedisComponent}
 import redis.api.Limit
 
 import scala.collection.immutable.Seq
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.util.control.NonFatal
+import scala.util.{Try, Failure, Success}
 
 /**
  * Writes journals in Sorted Set, using SequenceNr as score.
  * Deprecated API's are not implemented which causes few TCK tests to fail.
  */
-class RedisJournal extends SyncWriteJournal with ActorLogging with DefaultRedisComponent with ByteArraySerializer with JournalExecutionContext {
+class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedisComponent with ByteArraySerializer with JournalExecutionContext {
 
   /**
    * Define actor system for Rediscala and ByteArraySerializer
@@ -24,6 +25,21 @@ class RedisJournal extends SyncWriteJournal with ActorLogging with DefaultRedisC
 
   // Redis key namespace for journals
   private def journalKey(persistenceId: String) = s"journal:$persistenceId"
+
+
+  override def asyncWriteMessages(messages: Seq[AtomicWrite]): Future[Seq[Try[Unit]]] = Future.fromTry(Try {
+    messages.map { a =>
+      Try {
+        writeMessages(a.payload)
+      }
+    }
+  })
+
+  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] = try Future.successful {
+    deleteMessagesTo(persistenceId, toSequenceNr, true)
+  } catch {
+    case NonFatal(e) => Future.failed(e)
+  }
 
   /**
    * Plugin API: synchronously writes a batch of persistent messages to the journal.
@@ -47,20 +63,6 @@ class RedisJournal extends SyncWriteJournal with ActorLogging with DefaultRedisC
 
     Await.result(transaction.exec(), 1 second)
   }
-
-  /**
-   * Plugin API: synchronously writes a batch of delivery confirmations to the journal.
-   */
-  @scala.deprecated("writeConfirmations will be removed, since Channels will be removed.", "now")
-  def writeConfirmations(confirmations: Seq[PersistentConfirmation]): Unit = {}
-
-  /**
-   * Plugin API: synchronously deletes messages identified by `messageIds` from the
-   * journal. If `permanent` is set to `false`, the persistent messages are marked as
-   * deleted, otherwise they are permanently deleted.
-   */
-  @scala.deprecated("deleteMessages will be removed.", "now")
-  def deleteMessages(messageIds: Seq[PersistentId],permanent: Boolean): Unit = {}
 
   /**
    * Plugin API: synchronously deletes all persistent messages up to `toSequenceNr`

@@ -1,7 +1,7 @@
 object Version {
-  val project = "0.2.2"
+  val project = "0.3-SNAPSHOT"
   val scala = "2.11.7"
-  val akka = "2.3.12"
-  val play = "2.3.9"
-  val rediscala = "1.5.0"
+  val akka = "2.4.1"
+  val play = "2.4.6"
+  val rediscala = "1.6.0"
 }
