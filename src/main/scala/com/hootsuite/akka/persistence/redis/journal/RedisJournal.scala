@@ -10,7 +10,6 @@ import redis.api.Limit
 import scala.collection.immutable.Seq
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.control.NonFatal
 import scala.util.{Try, Failure, Success}
 
 /**
@@ -38,11 +37,8 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
     }
   })
 
-  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] = try Future.successful {
-    deleteMessagesTo(persistenceId, toSequenceNr, true)
-  } catch {
-    case NonFatal(e) => Future.failed(e)
-  }
+  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] =
+    redis.zremrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr)).map{_ => ()}
 
   /**
    * Plugin API: synchronously writes a batch of persistent messages to the journal.
@@ -66,40 +62,6 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
     }
 
     Await.result(transaction.exec(), 1 second)
-  }
-
-  /**
-   * Plugin API: synchronously deletes all persistent messages up to `toSequenceNr`
-   * (inclusive). If `permanent` is set to `false`, the persistent messages are marked
-   * as deleted, otherwise they are permanently deleted.
-   */
-  def deleteMessagesTo(persistenceId: String, toSequenceNr: Long, permanent: Boolean): Unit = {
-
-    import Journal._
-
-    val f = permanent match {
-      case true => redis.zremrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr))
-      case false =>
-        for {
-          journals <- redis.zrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr))
-        } yield {
-          val transaction = redis.transaction()
-          journals.foreach { journal =>
-            val pr = fromBytes[PersistentRepr](journal.persistentRepr).toOption.get
-            val newPr = pr.update(deleted = true)
-            toBytes(newPr) match {
-              case Success(serialized) =>
-                transaction.zremrangebyscore(journalKey(pr.persistenceId), Limit(pr.sequenceNr), Limit(pr.sequenceNr))
-                transaction.zadd(journalKey(newPr.persistenceId), (newPr.sequenceNr, Journal(newPr.sequenceNr, serialized, newPr.deleted)))
-              case Failure(e) => throw new RuntimeException("deleteMessagesTo: failed to deserialize journal entry to delete")
-            }
-          }
-
-          transaction.exec()
-        }
-    }
-
-    Await.result(f, 1 second)
   }
 
   /**
