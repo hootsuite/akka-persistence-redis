@@ -2,8 +2,9 @@ package com.hootsuite.akka.persistence.redis.journal
 
 import akka.actor.ActorLogging
 import akka.persistence._
-import akka.persistence.journal.{AsyncWriteJournal}
+import akka.persistence.journal.AsyncWriteJournal
 import com.hootsuite.akka.persistence.redis.{ByteArraySerializer, DefaultRedisComponent}
+import redis.ByteStringSerializer.LongConverter
 import redis.api.Limit
 
 import scala.collection.immutable.Seq
@@ -25,6 +26,8 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
 
   // Redis key namespace for journals
   private def journalKey(persistenceId: String) = s"journal:$persistenceId"
+
+  private def highestSequenceNrKey(persistenceId: String) = s"${journalKey(persistenceId)}.highestSequenceNr"
 
 
   override def asyncWriteMessages(messages: Seq[AtomicWrite]): Future[Seq[Try[Unit]]] = Future.fromTry(Try {
@@ -57,6 +60,7 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
         case Success(serialized) =>
           val journal = Journal(pr.sequenceNr, serialized, pr.deleted)
           transaction.zadd(journalKey(pr.persistenceId), (pr.sequenceNr, journal))
+          transaction.set(highestSequenceNrKey(pr.persistenceId), pr.sequenceNr)
         case Failure(e) => Future.failed(throw new RuntimeException("writeMessages: failed to write PersistentRepr to redis"))
       }
     }
@@ -146,10 +150,8 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
    *                       number.
    */
   def asyncReadHighestSequenceNr(persistenceId : String, fromSequenceNr : Long) : Future[Long] = {
-    import Journal._
-
-    redis.zrevrangebyscoreWithscores(journalKey(persistenceId), Limit(Double.MaxValue), Limit(fromSequenceNr), Some(0L, 1L)).map{
-      journals => journals.headOption.map{ a => a._2.toLong }.getOrElse(0L)
+    redis.get(highestSequenceNrKey(persistenceId)).map {
+      highestSequenceNr => highestSequenceNr.map(_.utf8String.toLong).getOrElse(0L)
     }
   }
 }
