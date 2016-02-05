@@ -37,6 +37,13 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
     }
   })
 
+  /**
+   * Plugin API: asynchronously deletes all persistent messages up to `toSequenceNr`
+   * (inclusive).
+   *
+   * This call is protected with a circuit-breaker.
+   * Message deletion doesn't affect the highest sequence number of messages, journal must maintain the highest sequence number and never decrease it.
+   */
   override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] =
     redis.zremrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr)).map{_ => ()}
 

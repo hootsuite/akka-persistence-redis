@@ -64,40 +64,36 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
     }
   }
 
-  override def deleteAsync(metadata: SnapshotMetadata): Future[Unit] =
-    Future {
-      delete(metadata)
-    }
-
-  override def deleteAsync(persistenceId: String, criteria: SnapshotSelectionCriteria): Future[Unit] =
-    Future {
-      delete(persistenceId, criteria)
-    }
-
-  /**
-   * Plugin API: called after successful saving of a snapshot.
-   *
-   * @param metadata snapshot metadata.
-   */
-  def saved(metadata : SnapshotMetadata) : Unit = {}
-
   /**
    * Plugin API: deletes the snapshot identified by `metadata`.
    *
+   * This call is protected with a circuit-breaker.
+   *
    * @param metadata snapshot metadata.
    */
-  def delete(metadata : SnapshotMetadata): Unit = {
+  override def deleteAsync(metadata: SnapshotMetadata): Future[Unit] =
     redis.zremrangebyscore(snapshotKey(metadata.persistenceId), Limit(metadata.sequenceNr), Limit(metadata.sequenceNr))
-  }
+      .map(_=>())
 
   /**
    * Plugin API: deletes all snapshots matching `criteria`.
    *
-   * @param persistenceId processor id.
+   * This call is protected with a circuit-breaker.
+   *
+   * @param persistenceId id of the persistent actor.
    * @param criteria selection criteria for deleting.
    */
-  def delete(persistenceId : String, criteria : SnapshotSelectionCriteria): Unit = {
-    redis.zremrangebyscore(snapshotKey(persistenceId), Limit(-1L), Limit(criteria.maxSequenceNr))
+  override def deleteAsync(persistenceId: String, criteria: SnapshotSelectionCriteria): Future[Unit] = {
+    import SnapshotRecord._
+
+    val future: Future[Seq[SnapshotRecord]] = redis.zrevrangebyscore(snapshotKey(persistenceId), Limit(criteria.maxSequenceNr), Limit(criteria.minSequenceNr))
+    future map { snapshots =>
+      snapshots.filter(s => s.timestamp >= criteria.minTimestamp && s.timestamp <= criteria.maxTimestamp)
+        .map { s =>
+          redis.zremrangebyscore(snapshotKey(persistenceId), Limit(s.sequenceNr), Limit(s.sequenceNr))
+        }
+    }
+    future.map(_ => ())
   }
 
 }
