@@ -86,16 +86,19 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
   override def deleteAsync(persistenceId: String, criteria: SnapshotSelectionCriteria): Future[Unit] = {
     import SnapshotRecord._
 
-    val future: Future[Seq[SnapshotRecord]] = redis.zrevrangebyscore(snapshotKey(persistenceId), Limit(criteria.maxSequenceNr), Limit(criteria.minSequenceNr))
-    future map { snapshots =>
-      snapshots.filter(s => s.timestamp >= criteria.minTimestamp && s.timestamp <= criteria.maxTimestamp)
-        .map { s =>
-          redis.zremrangebyscore(snapshotKey(persistenceId), Limit(s.sequenceNr), Limit(s.sequenceNr))
+    redis
+      .zrevrangebyscore(snapshotKey(persistenceId), Limit(criteria.maxSequenceNr), Limit(criteria.minSequenceNr))
+      .flatMap { snapshots =>
+        Future.sequence {
+          snapshots
+            .filter(s => s.timestamp >= criteria.minTimestamp && s.timestamp <= criteria.maxTimestamp)
+            .map { s =>
+              redis.zremrangebyscore(snapshotKey(persistenceId), Limit(s.sequenceNr), Limit(s.sequenceNr))
+            }
         }
-    }
-    future.map(_ => ())
+      }
+      .map(_ => ())
   }
-
 }
 
 trait SnapshotExecutionContext {
