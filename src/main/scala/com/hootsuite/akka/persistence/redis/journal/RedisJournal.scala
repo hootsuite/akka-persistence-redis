@@ -7,10 +7,9 @@ import com.hootsuite.akka.persistence.redis.{ByteArraySerializer, DefaultRedisCo
 import redis.ByteStringSerializer.LongConverter
 import redis.api.Limit
 import redis.commands.TransactionBuilder
-import redis.protocol.MultiBulk
 
 import scala.collection.immutable.Seq
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -36,13 +35,19 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
   private def asyncWriteBatch(a: AtomicWrite): Future[Try[Unit]] = {
     val transaction = redis.transaction()
 
-    val eventualUnit: Future[Unit] = Future.sequence(a.payload.map(asyncWriteOperation(transaction, _))).map(_ => ())
+    val batchOperations = Future
+      .sequence {
+        a.payload.map(asyncWriteOperation(transaction, _))
+      }
+      .map(_ => ())
 
     transaction.exec()
 
-    eventualUnit.map(Success(_)).recover {
-      case ex => Failure(ex)
-    }
+    batchOperations
+      .map(Success(_))
+      .recover {
+        case ex => Failure(ex)
+      }
   }
 
   private def asyncWriteOperation(transaction: TransactionBuilder, pr: PersistentRepr): Future[Unit] = {
