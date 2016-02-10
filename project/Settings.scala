@@ -31,7 +31,7 @@ object Settings {
         homepage := Some(url("https://github.com/hootsuite/akka-persistence-redis")),
         publishMavenStyle := true,
         pomIncludeRepository := { _ => false },
-        resolvers += Resolver.url("akka-persistence-redis", url("http://dl.bintray.com/ssongvan/maven"))(Resolver.ivyStylePatterns),
+        resolvers += Resolver.url("akka-persistence-redis", url("http://dl.bintray.com/hootsuite/maven"))(Resolver.ivyStylePatterns),
         licenses := ("Apache-2.0", url("http://www.apache.org/licenses/LICENSE-2.0.txt")) :: Nil // this is required! otherwise Bintray will reject the code
       )
 }

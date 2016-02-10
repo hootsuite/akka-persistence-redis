@@ -3,6 +3,9 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.2.2
+- Release on the official Hootsuite Bintray account
+
 # 0.2.1
 - Add resolver for jcenter in build.sbt
 

@@ -2,20 +2,21 @@ package com.hootsuite.akka.persistence.redis.journal
 
 import akka.actor.ActorLogging
 import akka.persistence._
-import akka.persistence.journal.SyncWriteJournal
+import akka.persistence.journal.AsyncWriteJournal
 import com.hootsuite.akka.persistence.redis.{ByteArraySerializer, DefaultRedisComponent}
+import redis.ByteStringSerializer.LongConverter
 import redis.api.Limit
+import redis.commands.TransactionBuilder
 
 import scala.collection.immutable.Seq
-import scala.concurrent.duration._
-import scala.concurrent.{Await, ExecutionContext, Future}
-import scala.util.{Failure, Success}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 /**
  * Writes journals in Sorted Set, using SequenceNr as score.
  * Deprecated API's are not implemented which causes few TCK tests to fail.
  */
-class RedisJournal extends SyncWriteJournal with ActorLogging with DefaultRedisComponent with ByteArraySerializer with JournalExecutionContext {
+class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedisComponent with ByteArraySerializer with JournalExecutionContext {
 
   /**
    * Define actor system for Rediscala and ByteArraySerializer
@@ -25,76 +26,52 @@ class RedisJournal extends SyncWriteJournal with ActorLogging with DefaultRedisC
   // Redis key namespace for journals
   private def journalKey(persistenceId: String) = s"journal:$persistenceId"
 
-  /**
-   * Plugin API: synchronously writes a batch of persistent messages to the journal.
-   * The batch write must be atomic i.e. either all persistent messages in the batch
-   * are written or none.
-   */
-  def writeMessages(messages: Seq[PersistentRepr]): Unit = {
+  private def highestSequenceNrKey(persistenceId: String) = s"${journalKey(persistenceId)}.highestSequenceNr"
 
-    import Journal._
+  override def asyncWriteMessages(messages: Seq[AtomicWrite]): Future[Seq[Try[Unit]]] = {
+    Future.sequence(messages.map(asyncWriteBatch))
+  }
 
+  private def asyncWriteBatch(a: AtomicWrite): Future[Try[Unit]] = {
     val transaction = redis.transaction()
 
-    messages.map { pr =>
-      toBytes(pr) match {
-        case Success(serialized) =>
-          val journal = Journal(pr.sequenceNr, serialized, pr.deleted)
-          transaction.zadd(journalKey(pr.persistenceId), (pr.sequenceNr, journal))
-        case Failure(e) => Future.failed(throw new RuntimeException("writeMessages: failed to write PersistentRepr to redis"))
+    val batchOperations = Future
+      .sequence {
+        a.payload.map(asyncWriteOperation(transaction, _))
       }
-    }
+      .map(_ => ())
 
-    Await.result(transaction.exec(), 1 second)
+    transaction.exec()
+
+    batchOperations
+      .map(Success(_))
+      .recover {
+        case ex => Failure(ex)
+      }
   }
 
-  /**
-   * Plugin API: synchronously writes a batch of delivery confirmations to the journal.
-   */
-  @scala.deprecated("writeConfirmations will be removed, since Channels will be removed.", "now")
-  def writeConfirmations(confirmations: Seq[PersistentConfirmation]): Unit = {}
-
-  /**
-   * Plugin API: synchronously deletes messages identified by `messageIds` from the
-   * journal. If `permanent` is set to `false`, the persistent messages are marked as
-   * deleted, otherwise they are permanently deleted.
-   */
-  @scala.deprecated("deleteMessages will be removed.", "now")
-  def deleteMessages(messageIds: Seq[PersistentId],permanent: Boolean): Unit = {}
-
-  /**
-   * Plugin API: synchronously deletes all persistent messages up to `toSequenceNr`
-   * (inclusive). If `permanent` is set to `false`, the persistent messages are marked
-   * as deleted, otherwise they are permanently deleted.
-   */
-  def deleteMessagesTo(persistenceId: String, toSequenceNr: Long, permanent: Boolean): Unit = {
-
+  private def asyncWriteOperation(transaction: TransactionBuilder, pr: PersistentRepr): Future[Unit] = {
     import Journal._
 
-    val f = permanent match {
-      case true => redis.zremrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr))
-      case false =>
-        for {
-          journals <- redis.zrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr))
-        } yield {
-          val transaction = redis.transaction()
-          journals.foreach { journal =>
-            val pr = fromBytes[PersistentRepr](journal.persistentRepr).toOption.get
-            val newPr = pr.update(deleted = true)
-            toBytes(newPr) match {
-              case Success(serialized) =>
-                transaction.zremrangebyscore(journalKey(pr.persistenceId), Limit(pr.sequenceNr), Limit(pr.sequenceNr))
-                transaction.zadd(journalKey(newPr.persistenceId), (newPr.sequenceNr, Journal(newPr.sequenceNr, serialized, newPr.deleted)))
-              case Failure(e) => throw new RuntimeException("deleteMessagesTo: failed to deserialize journal entry to delete")
-            }
-          }
-
-          transaction.exec()
-        }
+    toBytes(pr) match {
+      case Success(serialized) =>
+        val journal = Journal(pr.sequenceNr, serialized, pr.deleted)
+        transaction.zadd(journalKey(pr.persistenceId), (pr.sequenceNr, journal)).zip(
+          transaction.set(highestSequenceNrKey(pr.persistenceId), pr.sequenceNr)
+        ).map(_ => ())
+      case Failure(e) => Future.failed(new scala.RuntimeException("writeMessages: failed to write PersistentRepr to redis"))
     }
-
-    Await.result(f, 1 second)
   }
+
+  /**
+   * Plugin API: asynchronously deletes all persistent messages up to `toSequenceNr`
+   * (inclusive).
+   *
+   * This call is protected with a circuit-breaker.
+   * Message deletion doesn't affect the highest sequence number of messages, journal must maintain the highest sequence number and never decrease it.
+   */
+  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] =
+    redis.zremrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr)).map{_ => ()}
 
   /**
    * Plugin API: asynchronously replays persistent messages. Implementations replay
@@ -144,10 +121,8 @@ class RedisJournal extends SyncWriteJournal with ActorLogging with DefaultRedisC
    *                       number.
    */
   def asyncReadHighestSequenceNr(persistenceId : String, fromSequenceNr : Long) : Future[Long] = {
-    import Journal._
-
-    redis.zrevrangebyscoreWithscores(journalKey(persistenceId), Limit(Double.MaxValue), Limit(fromSequenceNr), Some(0L, 1L)).map{
-      journals => journals.headOption.map{ a => a._2.toLong }.getOrElse(0L)
+    redis.get(highestSequenceNrKey(persistenceId)).map {
+      highestSequenceNr => highestSequenceNr.map(_.utf8String.toLong).getOrElse(0L)
     }
   }
 }

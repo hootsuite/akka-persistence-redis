@@ -19,5 +19,9 @@ project/plugins/project/
 .scala_dependencies
 .worksheet
 
+# IntelliJ IDEA
+*.ipr
+*.iws
+
 # Mac OSX stuff
 .DS_STORE
