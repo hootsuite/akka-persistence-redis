@@ -2,5 +2,7 @@ language: scala
 sudo: false
 scala:
 - 2.11.7
+jdk:
+- oraclejdk8
 services:
 - redis-server
