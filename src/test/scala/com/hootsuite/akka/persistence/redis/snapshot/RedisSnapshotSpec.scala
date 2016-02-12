@@ -7,13 +7,13 @@ import redis.RedisClient
 /**
  * Akka Persistence Snapshot TCK tests provided by Akka
  */
-class RedisSnapshotSpec extends SnapshotStoreSpec {
-
-  override lazy val config = ConfigFactory.parseString(
+class RedisSnapshotSpec extends SnapshotStoreSpec(
+  config = ConfigFactory.parseString(
     """
       |akka.persistence.snapshot-store.plugin = "akka-persistence-redis.snapshot"
       |akka-persistence-redis.snapshot.class = "com.hootsuite.akka.persistence.redis.snapshot.RedisSnapshotStore"
     """.stripMargin)
+) {
 
   override def beforeAll() = {
     super.beforeAll()

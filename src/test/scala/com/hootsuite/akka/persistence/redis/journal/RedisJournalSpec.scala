@@ -1,5 +1,6 @@
 package com.hootsuite.akka.persistence.redis.journal
 
+import akka.persistence.CapabilityFlag
 import akka.persistence.journal.JournalSpec
 import com.typesafe.config.ConfigFactory
 import redis.RedisClient
@@ -7,13 +8,15 @@ import redis.RedisClient
 /**
  * Akka Persistence Journal TCK tests provided by Akka
  */
-class RedisJournalSpec extends JournalSpec {
-
-  override lazy val config = ConfigFactory.parseString(
+class RedisJournalSpec extends JournalSpec(
+  config = ConfigFactory.parseString(
     """
       |akka.persistence.journal.plugin = "akka-persistence-redis.journal"
       |akka-persistence-redis.journal.class = "com.hootsuite.akka.persistence.redis.journal.RedisJournal"
     """.stripMargin)
+) {
+
+  override protected def supportsRejectingNonSerializableObjects: CapabilityFlag = true
 
   override def beforeAll() = {
     super.beforeAll()
