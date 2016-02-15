@@ -1,20 +1,35 @@
 #Akka Persistence Redis Plugin
 
 ## What is Akka Persistence Redis plugin?
-This is a plugin for Akka Persistence that uses Redis as backend.
+This is a plugin for Akka Persistence that uses Redis as backend. It uses [rediscala](https://github.com/etaty/rediscala), an asynchronous Redis client written with Akka and Scala.
  
 ## Compatibility
-This plugin was developed for Akka 2.3.x and Scala 2.11.x
-It uses [rediscala](https://github.com/etaty/rediscala), an asynchronous Redis client written with Akka and Scala.
+### Akka 2.4.x
+Use versions from *0.3.0* for Akka 2.4.x
+```
+resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.3.0")
+```
+
+### Akka 2.3.x
+Use versions up to *0.2.2* for Akka 2.3.x
+```
+resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.2.2")
+```
 Deprecated methods since Akka 2.3.4 are NOT implemented. As a result, some tests in [TCK](http://doc.akka.io/docs/akka/snapshot/scala/persistence.html#Plugin_TCK) fail.
-Rest of methods are tested with the test harness included in this project.  
+Rest of methods are tested with the test harness included in this project.
+  
+### SNAPSHOT
+Development snapshots are published on JFrog OSS 
+`resolvers += "akka-persistence-redis" at "http://oss.jfrog.org/oss-snapshot-local"`
 
 ## Quick start guide
 ### Installation
 build.sbt
 ```
 resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
-libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.2.1")
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.3.0")
 ```
 ### Activation
 ```
