@@ -3,6 +3,9 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.3.0
+- Support for Akka 2.4
+
 # 0.2.2
 - Release on the official Hootsuite Bintray account
 
