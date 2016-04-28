@@ -3,6 +3,9 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.4.0
+- Pull in Play 2.5 for play-json. Fixes issues when the plugin is used with Play 2.5
+
 # 0.3.0
 - Support for Akka 2.4
 

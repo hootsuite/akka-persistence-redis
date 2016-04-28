@@ -2,10 +2,18 @@
 
 ## What is Akka Persistence Redis plugin?
 This is a plugin for Akka Persistence that uses Redis as backend. It uses [rediscala](https://github.com/etaty/rediscala), an asynchronous Redis client written with Akka and Scala.
+It also depends on play-json for JSON serialization.
  
 ## Compatibility
-### Akka 2.4.x
-Use versions from *0.3.0* for Akka 2.4.x
+### Akka 2.4.x and Play 2.5.x
+Use versions from *0.4.0* for Akka 2.4.x and Play 2.5.x
+```
+resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.4.0")
+```
+
+### Akka 2.4.x and Play 2.4.x
+Use versions from *0.3.0* for Akka 2.4.x and Play 2.4.x
 ```
 resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
 libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.3.0")
@@ -29,7 +37,7 @@ Development snapshots are published on JFrog OSS
 build.sbt
 ```
 resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
-libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.3.0")
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.4.0")
 ```
 ### Activation
 ```
