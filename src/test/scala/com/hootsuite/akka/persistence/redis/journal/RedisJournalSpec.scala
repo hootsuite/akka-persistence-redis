@@ -22,13 +22,14 @@ class RedisJournalSpec extends JournalSpec(
   override def beforeAll() = {
     super.beforeAll()
     val config = ConfigFactory.load()
-    val host = config.getString("redis.host")
-    val port = config.getInt("redis.port")
+
     val sentinel = config.getBoolean("redis.sentinel")
 
     lazy val redis = if(sentinel){
       SentinelUtils.getSentinelBasedClient(config)
     } else {
+      val host = config.getString("redis.host")
+      val port = config.getInt("redis.port")
       new RedisClient(host, port)
     }
 

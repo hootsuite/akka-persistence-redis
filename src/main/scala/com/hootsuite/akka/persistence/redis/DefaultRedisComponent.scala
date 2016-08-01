@@ -8,13 +8,13 @@ trait DefaultRedisComponent {
   implicit val actorSystem: ActorSystem
 
   private val config = actorSystem.settings.config
-  private val host = config.getString("redis.host")
-  private val port = config.getInt("redis.port")
   private val sentinel = config.getBoolean("redis.sentinel")
 
   lazy val redis = if(sentinel){
     SentinelUtils.getSentinelBasedClient(config)
   } else {
+    val host = config.getString("redis.host")
+    val port = config.getInt("redis.port")
     new RedisClient(host, port)
   }
 

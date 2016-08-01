@@ -56,8 +56,6 @@ redis {
 If using sentinel
 ```
 redis {
-  host = "localhost"
-  port = 6379
   sentinel = true
   sentinel-master = "mymaster"  //master name
   sentinels = [{host :"localhost", port: 26379}] // list of sentinel addresses
