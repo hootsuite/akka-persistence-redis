@@ -13,7 +13,7 @@ object SentinelUtils {
     val sentinels = config.getConfigList("redis.sentinels") map { conf =>
       conf.getString("host") -> conf.getInt("port")
     }
-    new SentinelMonitoredRedisClient(sentinels,sentinelMaster).redisClient
+    SentinelMonitoredRedisClient(sentinels,sentinelMaster).redisClient
   }
 
 }

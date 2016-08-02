@@ -15,7 +15,7 @@ trait DefaultRedisComponent {
   } else {
     val host = config.getString("redis.host")
     val port = config.getInt("redis.port")
-    new RedisClient(host, port)
+    RedisClient(host, port)
   }
 
 }
