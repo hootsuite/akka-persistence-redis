@@ -50,6 +50,8 @@ From [rediscala](https://github.com/etaty/rediscala)
 redis {
   host = "localhost"
   port = 6379
+  # optional
+  password="topsecret"
 }
 ```
 
@@ -65,6 +67,7 @@ redis {
 ## Usage
 ### Redis keys
 Journal and snapshot use "journal:" and "snapshot:" as part of keys respectively as it is a good practice to create namespace for keys [reference](https://redislabs.com/blog/5-key-takeaways-for-developing-with-redis)
+The namespaces can be overriden using the akka-persistence-redis.journal.key-namespace and akka-persistence-redis.snapshot.key-namespace.
 
 ### How is data stored in Redis?
 In order to enforce ordering, journal entries and snapshots are inserted into [Sorted Set](http://redis.io/commands#sorted_set) and sorted by sequenceNr

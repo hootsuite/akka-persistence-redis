@@ -23,8 +23,15 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
    */
   override implicit lazy val actorSystem = context.system
 
+  private val config = actorSystem.settings.config
+
+  /**
+   * Get the journal key namespace from config
+   */
+  private val journalKeyNamespace = config.getString("akka-persistence-redis.journal.key-namespace")
+
   // Redis key namespace for journals
-  private def journalKey(persistenceId: String) = s"journal:$persistenceId"
+  private def journalKey(persistenceId: String) = s"$journalKeyNamespace:$persistenceId"
 
   private def highestSequenceNrKey(persistenceId: String) = s"${journalKey(persistenceId)}.highestSequenceNr"
 
