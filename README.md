@@ -6,10 +6,10 @@ It also depends on play-json for JSON serialization.
 
 ## Compatibility
 ### Akka 2.4.x and Play 2.5.x
-Use versions from *0.4.0* for Akka 2.4.x and Play 2.5.x
+Use versions from *0.6.0* for Akka 2.4.x and Play 2.5.x
 ```
 resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
-libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.5.0")
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.6.0")
 ```
 
 ### Akka 2.4.x and Play 2.4.x
