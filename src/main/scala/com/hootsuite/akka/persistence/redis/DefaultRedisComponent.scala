@@ -15,7 +15,12 @@ trait DefaultRedisComponent {
   } else {
     val host = config.getString("redis.host")
     val port = config.getInt("redis.port")
-    RedisClient(host, port)
+    val passwordConfig = "redis.password"
+    val password = config.hasPath(passwordConfig) match {
+      case true => Some(config.getString(passwordConfig))
+      case false => None
+    }
+    RedisClient(host, port, password=password)
   }
 
 }

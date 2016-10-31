@@ -20,8 +20,12 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
    */
   override implicit lazy val actorSystem = context.system
 
+  private val config = actorSystem.settings.config
+
+  private val snapshotKeyNamespace =config.getString("akka-persistence-redis.snapshot.key-namespace")
+
   // Redis key namespace for snapshots
-  private def snapshotKey(persistenceId: String) = s"snapshot:$persistenceId"
+  private def snapshotKey(persistenceId: String) = s"$snapshotKeyNamespace:$persistenceId"
 
   /**
    * Plugin API: asynchronously loads a snapshot.

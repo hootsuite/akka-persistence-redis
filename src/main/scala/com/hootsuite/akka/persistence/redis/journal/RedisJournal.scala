@@ -23,8 +23,24 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
    */
   override implicit lazy val actorSystem = context.system
 
+  private val config = actorSystem.settings.config
+
+  /**
+   * Get the journal key namespace from config
+   */
+  private val journalKeyNamespace = config.getString("akka-persistence-redis.journal.key-namespace")
+
+  /**
+   * Read the max-replay-messages in the config, to be used when replaying the messages (since some Redis
+   * implementation does not support huge values like Microsoft Azure Redis)
+   */
+  private val maxReplayMessagesConfig = "redis.max-replay-messages"
+  private val maxReplayMessages = config.hasPath(maxReplayMessagesConfig) match {
+    case true => Some(config.getLong(maxReplayMessagesConfig))
+    case false => None
+  }
   // Redis key namespace for journals
-  private def journalKey(persistenceId: String) = s"journal:$persistenceId"
+  private def journalKey(persistenceId: String) = s"$journalKeyNamespace:$persistenceId"
 
   private def highestSequenceNrKey(persistenceId: String) = s"${journalKey(persistenceId)}.highestSequenceNr"
 
@@ -101,7 +117,11 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
     import Journal._
 
     for {
-      journals <- redis.zrangebyscore(journalKey(persistenceId), Limit(fromSequenceNr), Limit(toSequenceNr), Some((0L, max)))
+      journals <- redis.zrangebyscore(journalKey(persistenceId), Limit(fromSequenceNr), Limit(toSequenceNr), Some((0L,
+        maxReplayMessages match {
+          case Some(m) if max > m => m
+          case _ => max
+        })))
     } yield {
       journals.foreach { journal =>
         fromBytes[PersistentRepr](journal.persistentRepr) match {
