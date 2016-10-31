@@ -34,7 +34,7 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
    * Read the max-replay-messages in the config, to be used when replaying the messages (since some Redis
    * implementation does not support huge values like Microsoft Azure Redis)
    */
-  private val maxReplayMessagesConfig = "redis.max-replay-messages"
+  private val maxReplayMessagesConfig = "akka-persistence-redis.journal.max-replay-messages"
   private val maxReplayMessages = config.hasPath(maxReplayMessagesConfig) match {
     case true => Some(config.getLong(maxReplayMessagesConfig))
     case false => None

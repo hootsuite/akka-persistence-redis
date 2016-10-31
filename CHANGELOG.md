@@ -3,6 +3,13 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.6.0
+- Support for Microsoft Azure Redis. Override the number of maximum number of messages to replay because the default is too big for Azure Redis.
+- Option to override key namespace with `journal.key-namespace` and `snapshot.key-namespace`
+
+# 0.5.0
+- Support for Redis Sentinel
+
 # 0.4.0
 - Pull in Play 2.5 for play-json. Fixes issues when the plugin is used with Play 2.5
 
