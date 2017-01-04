@@ -3,6 +3,12 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.7.0
+- Scala 2.12 compatibility
+    - Replace play-json with spray-json
+    - Upgrade akka & rediscala
+    - Drop unused commons-codec dependency
+
 # 0.6.0
 - Support for Microsoft Azure Redis. Override the number of maximum number of messages to replay because the default is too big for Azure Redis.
 - Option to override key namespace with `journal.key-namespace` and `snapshot.key-namespace`
