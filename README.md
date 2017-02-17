@@ -5,22 +5,29 @@ This is a plugin for Akka Persistence that uses Redis as backend. It uses [redis
 It also depends on play-json for JSON serialization.
 
 ## Compatibility
-### Akka 2.4.x and Play 2.5.x
-Use versions from *0.6.0* for Akka 2.4.x and Play 2.5.x
+### Scala 2.12 and Akka 2.4.x
+Use versions from *0.7.0*
+```
+resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.7.0")
+```
+
+### Scala 2.11, Akka 2.4.x and Play 2.5.x
+Use *0.6.0*
 ```
 resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
 libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.6.0")
 ```
 
-### Akka 2.4.x and Play 2.4.x
-Use versions from *0.3.0* for Akka 2.4.x and Play 2.4.x
+### Scala 2.11, Akka 2.4.x and Play 2.4.x
+Use *0.5.0*
 ```
 resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
 libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.3.0")
 ```
 
-### Akka 2.3.x
-Use versions up to *0.2.2* for Akka 2.3.x
+### Scala 2.11 and Akka 2.3.x
+Use *0.2.2*
 ```
 resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
 libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.2.2")
