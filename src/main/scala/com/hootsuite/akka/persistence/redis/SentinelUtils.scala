@@ -13,7 +13,12 @@ object SentinelUtils {
     val sentinels = config.getConfigList("redis.sentinels") map { conf =>
       conf.getString("host") -> conf.getInt("port")
     }
-    SentinelMonitoredRedisClient(sentinels,sentinelMaster).redisClient
+    val dbConfig = "redis.db"
+    val db = config.hasPath(dbConfig) match {
+      case true => Some(config.getInt(dbConfig))
+      case false => None
+    }
+    SentinelMonitoredRedisClient(sentinels, sentinelMaster, db = db).redisClient
   }
 
 }
