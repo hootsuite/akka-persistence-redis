@@ -3,6 +3,9 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.7.1
+- Added `redis.db` config to select DB 
+
 # 0.7.0
 - Scala 2.12 compatibility
     - Replace play-json with spray-json

@@ -58,7 +58,8 @@ redis {
   host = "localhost"
   port = 6379
   # optional
-  password="topsecret"
+  password = "topsecret"
+  db = 1
 }
 ```
 
