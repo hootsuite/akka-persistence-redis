@@ -142,7 +142,7 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
    */
   def asyncReadHighestSequenceNr(persistenceId : String, fromSequenceNr : Long) : Future[Long] = {
     redis.get(highestSequenceNrKey(persistenceId)).map {
-      highestSequenceNr => highestSequenceNr.map(_.utf8String.toLong).getOrElse(0L)
+      highestSequenceNr => highestSequenceNr.map(_.utf8String.toLong).getOrElse(fromSequenceNr)
     }
   }
 }
