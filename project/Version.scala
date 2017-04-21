@@ -4,4 +4,5 @@ object Version {
   val akka = "2.4.12"
   val sprayJson = "1.3.3"
   val rediscala = "1.8.0"
+  val dispatch = "0.12.0"
 }

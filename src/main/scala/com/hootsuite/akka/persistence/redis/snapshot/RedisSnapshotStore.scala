@@ -5,6 +5,7 @@ import akka.persistence.serialization.Snapshot
 import akka.persistence.snapshot.SnapshotStore
 import akka.persistence.{SelectedSnapshot, SnapshotMetadata, SnapshotSelectionCriteria}
 import com.hootsuite.akka.persistence.redis.{ByteArraySerializer, DefaultRedisComponent}
+import redis.actors.NoConnectionException
 import redis.api.Limit
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -35,17 +36,25 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
    */
   def loadAsync(persistenceId : String, criteria : SnapshotSelectionCriteria) : Future[Option[SelectedSnapshot]] = {
     import SnapshotRecord._
-
-    for {
-      snapshots <- redis.zrevrangebyscore(snapshotKey(persistenceId), Limit(criteria.maxSequenceNr), Limit(-1))
-    } yield {
-      val maybeSnapshot = snapshots.find(s => s.timestamp <= criteria.maxTimestamp && s.sequenceNr <= criteria.maxSequenceNr)
-      maybeSnapshot.flatMap { s =>
-        fromBytes[Snapshot](s.snapshot).toOption.map { ds =>
-          SelectedSnapshot(SnapshotMetadata(persistenceId, s.sequenceNr, s.timestamp), ds.data)
+    val getResultFuture = () => {
+      val maybeSnapshot = for {
+        snapshots <- redis.zrevrangebyscore(snapshotKey(persistenceId), Limit(criteria.maxSequenceNr), Limit(-1))
+      } yield {
+        val maybeSnapshot = snapshots.find(s => s.timestamp <= criteria.maxTimestamp && s.sequenceNr <= criteria.maxSequenceNr)
+        maybeSnapshot.flatMap { s =>
+          fromBytes[Snapshot](s.snapshot).toOption.map { ds =>
+            SelectedSnapshot(SnapshotMetadata(persistenceId, s.sequenceNr, s.timestamp), ds.data)
+          }
         }
       }
+
+      maybeSnapshot.map(u => Right(Success(u)))
+        .recover {
+        case ex@NoConnectionException => Left(ex) // potential retry in that case
+        case ex => Right(Failure(ex))
+      }
     }
+    backOffWithConfig(pluginRetryConfig.readRetryConfig)(getResultFuture).map { case u => u.get }
   }
 
   /**
@@ -61,11 +70,18 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
       SnapshotRecord(metadata.sequenceNr, metadata.timestamp, serialized)
     }
 
-    maybeSnapshotRecord match {
-      case Success(snapshotRecord) =>
-        redis.zadd(snapshotKey(metadata.persistenceId), (metadata.sequenceNr, snapshotRecord)).map{_ => ()}
-      case Failure(e) => Future.failed(throw new RuntimeException(s"Failed to save snapshot. metadata: $metadata snapshot: $snapshot"))
+    val getResultFuture = () => {
+      maybeSnapshotRecord match {
+        case Success(snapshotRecord) =>
+          redis.zadd(snapshotKey(metadata.persistenceId), (metadata.sequenceNr, snapshotRecord)).map { _ => Right(Success()) }.recover {
+            case ex@NoConnectionException => Left(ex) // potential retry in that case
+            case ex => Right(Failure(ex))
+          }
+        case Failure(_) =>
+          Future.successful(Right(Failure(new RuntimeException(s"Failed to save snapshot. metadata: $metadata snapshot: $snapshot"))))
+      }
     }
+    backOffWithConfig(pluginRetryConfig.writeRetryConfig)(getResultFuture).map { case u => u.get }
   }
 
   /**
@@ -75,9 +91,17 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
    *
    * @param metadata snapshot metadata.
    */
-  override def deleteAsync(metadata: SnapshotMetadata): Future[Unit] =
-    redis.zremrangebyscore(snapshotKey(metadata.persistenceId), Limit(metadata.sequenceNr), Limit(metadata.sequenceNr))
-      .map(_=>())
+  override def deleteAsync(metadata: SnapshotMetadata): Future[Unit] = {
+    val getResultFuture = () => {
+      redis.zremrangebyscore(snapshotKey(metadata.persistenceId), Limit(metadata.sequenceNr), Limit(metadata.sequenceNr))
+        .map(_ => Right(Success()))
+    }.recover {
+      case ex@NoConnectionException => Left(ex) // potential retry in that case
+      case ex => Right(Failure(ex))
+    }
+    backOffWithConfig(pluginRetryConfig.deleteRetryConfig)(getResultFuture).map { case u => u.get }
+  }
+
 
   /**
    * Plugin API: deletes all snapshots matching `criteria`.
@@ -90,18 +114,24 @@ class RedisSnapshotStore extends SnapshotStore with ActorLogging with DefaultRed
   override def deleteAsync(persistenceId: String, criteria: SnapshotSelectionCriteria): Future[Unit] = {
     import SnapshotRecord._
 
-    redis
-      .zrevrangebyscore(snapshotKey(persistenceId), Limit(criteria.maxSequenceNr), Limit(criteria.minSequenceNr))
-      .flatMap { snapshots =>
-        Future.sequence {
-          snapshots
-            .filter(s => s.timestamp >= criteria.minTimestamp && s.timestamp <= criteria.maxTimestamp)
-            .map { s =>
-              redis.zremrangebyscore(snapshotKey(persistenceId), Limit(s.sequenceNr), Limit(s.sequenceNr))
-            }
+    val getResultFuture = () => {
+      redis
+        .zrevrangebyscore(snapshotKey(persistenceId), Limit(criteria.maxSequenceNr), Limit(criteria.minSequenceNr))
+        .flatMap { snapshots =>
+          Future.sequence {
+            snapshots
+              .filter(s => s.timestamp >= criteria.minTimestamp && s.timestamp <= criteria.maxTimestamp)
+              .map { s =>
+                redis.zremrangebyscore(snapshotKey(persistenceId), Limit(s.sequenceNr), Limit(s.sequenceNr))
+              }
+          }
         }
-      }
-      .map(_ => ())
+        .map(_ => Right(Success()))
+    }.recover {
+      case ex@NoConnectionException => Left(ex) // potential retry in that case
+      case ex => Right(Failure(ex))
+    }
+    backOffWithConfig(pluginRetryConfig.deleteRetryConfig)(getResultFuture).map { case u => u.get }
   }
 }
 
