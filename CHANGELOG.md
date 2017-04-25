@@ -3,6 +3,9 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.7.2
+- Fallback to `fromSequenceNr` instead of to `0L` in Journal::asyncReadHighestSequenceNr
+
 # 0.7.1
 - Added `redis.db` config to select DB 
 
