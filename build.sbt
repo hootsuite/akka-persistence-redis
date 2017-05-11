@@ -15,7 +15,8 @@ resolvers += Resolver.jcenterRepo
 libraryDependencies ++= Seq(
   "com.typesafe.akka"    %% "akka-contrib" % Version.akka,
   "com.github.etaty"     %% "rediscala" % Version.rediscala,
-  "io.spray"             %% "spray-json" % Version.sprayJson
+  "io.spray"                %% "spray-json" % Version.sprayJson,
+  "net.databinder.dispatch" %% "dispatch-core" % Version.dispatch
 )
 
 // Test dependencies

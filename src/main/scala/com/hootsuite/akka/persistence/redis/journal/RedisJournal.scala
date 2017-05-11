@@ -4,7 +4,7 @@ import akka.actor.ActorLogging
 import akka.persistence._
 import akka.persistence.journal.AsyncWriteJournal
 import com.hootsuite.akka.persistence.redis.{ByteArraySerializer, DefaultRedisComponent}
-import redis.ByteStringSerializer.LongConverter
+import redis.actors.NoConnectionException
 import redis.api.Limit
 import redis.commands.TransactionBuilder
 
@@ -49,21 +49,24 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
   }
 
   private def asyncWriteBatch(a: AtomicWrite): Future[Try[Unit]] = {
-    val transaction = redis.transaction()
+    val getResultFuture = () => {
+      val transaction = redis.transaction()
 
-    val batchOperations = Future
-      .sequence {
-        a.payload.map(asyncWriteOperation(transaction, _))
-      }
-      .map(_ => ())
+      val batchOperations = Future
+        .sequence {
+          a.payload.map(asyncWriteOperation(transaction, _))
+        }
+        .map(_ => ())
 
-    transaction.exec()
-
-    batchOperations
-      .map(Success(_))
-      .recover {
-        case ex => Failure(ex)
-      }
+      transaction.exec()
+      batchOperations
+        .map(u => Right(Success(u)))
+        .recover {
+          case ex@NoConnectionException => Left(ex) // potential retry in that case
+          case ex => Right(Failure(ex))
+        }
+    }
+    backOffWithConfig(pluginRetryConfig.writeRetryConfig)(getResultFuture)
   }
 
   private def asyncWriteOperation(transaction: TransactionBuilder, pr: PersistentRepr): Future[Unit] = {
@@ -86,8 +89,16 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
    * This call is protected with a circuit-breaker.
    * Message deletion doesn't affect the highest sequence number of messages, journal must maintain the highest sequence number and never decrease it.
    */
-  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] =
-    redis.zremrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr)).map{_ => ()}
+  override def asyncDeleteMessagesTo(persistenceId: String, toSequenceNr: Long): Future[Unit] = {
+
+    val getResultFuture = () => {
+      redis.zremrangebyscore(journalKey(persistenceId), Limit(-1), Limit(toSequenceNr)).map { _ => Right(Success()) }
+    }.recover {
+      case ex@NoConnectionException => Left(ex) // potential retry in that case
+      case ex => Right(Failure(ex))
+    }
+    backOffWithConfig(pluginRetryConfig.deleteRetryConfig)(getResultFuture).map { case u => u.get }
+  }
 
   /**
    * Plugin API: asynchronously replays persistent messages. Implementations replay
@@ -116,20 +127,28 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
 
     import Journal._
 
-    for {
-      journals <- redis.zrangebyscore(journalKey(persistenceId), Limit(fromSequenceNr), Limit(toSequenceNr), Some((0L,
-        maxReplayMessages match {
-          case Some(m) if max > m => m
-          case _ => max
-        })))
-    } yield {
-      journals.foreach { journal =>
-        fromBytes[PersistentRepr](journal.persistentRepr) match {
-          case Success(pr) => replayCallback(pr)
-          case Failure(e) => Future.failed(throw new RuntimeException("asyncReplayMessages: Failed to deserialize PersistentRepr"))
+    val getResultFuture = () => {
+      for {
+        journals <- redis.zrangebyscore(journalKey(persistenceId), Limit(fromSequenceNr), Limit(toSequenceNr), Some((0L,
+          maxReplayMessages match {
+            case Some(m) if max > m => m
+            case _ => max
+          })))
+      } yield {
+        journals.foreach { journal =>
+          fromBytes[PersistentRepr](journal.persistentRepr) match {
+            case Success(pr) => replayCallback(pr)
+            case Failure(_) => Future.failed(throw new RuntimeException("asyncReplayMessages: Failed to deserialize PersistentRepr"))
+          }
         }
+        Right(Success())
       }
-    }
+      }.recover {
+        case ex@NoConnectionException => Left(ex) // potential retry in that case
+        case ex => Right(Failure(ex))
+      }
+
+    backOffWithConfig(pluginRetryConfig.readRetryConfig)(getResultFuture).map { case u => u.get }
   }
 
   /**
@@ -141,9 +160,15 @@ class RedisJournal extends AsyncWriteJournal with ActorLogging with DefaultRedis
    *                       number.
    */
   def asyncReadHighestSequenceNr(persistenceId : String, fromSequenceNr : Long) : Future[Long] = {
-    redis.get(highestSequenceNrKey(persistenceId)).map {
-      highestSequenceNr => highestSequenceNr.map(_.utf8String.toLong).getOrElse(fromSequenceNr)
+    val getResultFuture = () => {
+      redis.get(highestSequenceNrKey(persistenceId)).map {
+        highestSequenceNr => Right(Success(highestSequenceNr.map(_.utf8String.toLong).getOrElse(fromSequenceNr)))
+      }.recover {
+        case ex@NoConnectionException => Left(ex) // potential retry in that case
+        case ex => Right(Failure(ex))
+        }
     }
+    backOffWithConfig(pluginRetryConfig.readRetryConfig)(getResultFuture).map { case u => u.get }
   }
 }
 
