@@ -72,6 +72,18 @@ redis {
 }
 ```
 
+### Run Tests
+Dockerfile is provided to set up Redis server to run tests.
+```
+# Build and start Redis docker container
+docker build -t <your.name>/redis .
+docker run -d -p 6379:6379 <your.name>/redis
+# Run tests
+sbt test
+# Stop docker container
+docker stop <container.id>
+```
+
 ## Usage
 ### Redis keys
 Journal and snapshot use "journal:" and "snapshot:" as part of keys respectively as it is a good practice to create namespace for keys [reference](https://redislabs.com/blog/5-key-takeaways-for-developing-with-redis)

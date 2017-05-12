@@ -3,6 +3,13 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.8.0
+- Retry Redis operation when the server connection is lost
+    - Only retries on NoConnectionException
+    - Retry performed with exponential backoff
+    - Separate configuration for read, write, and delete
+    - Original exception is thrown to Akka if all retry attemps failed
+
 # 0.7.2
 - Fallback to `fromSequenceNr` instead of to `0L` in Journal::asyncReadHighestSequenceNr
 
