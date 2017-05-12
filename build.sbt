@@ -8,7 +8,7 @@ organization := "com.hootsuite"
 
 version := Version.project
 
-scalaVersion := Version.scala
+crossScalaVersions := Version.scala
 
 resolvers += Resolver.jcenterRepo
 
