@@ -5,6 +5,13 @@ This is a plugin for Akka Persistence that uses Redis as backend. It uses [redis
 It also depends on play-json for JSON serialization.
 
 ## Compatibility
+
+### Scala 2.12 and Akka 2.5.x
+Use versions from *0.9.0*
+```
+resolvers += Resolver.jcenterRepo // Adds Bintray to resolvers for akka-persistence-redis and rediscala
+libraryDependencies ++= Seq("com.hootsuite" %% "akka-persistence-redis" % "0.9.0")
+```
 ### Scala 2.12 and Akka 2.4.x
 Use versions from *0.7.0*
 ```
