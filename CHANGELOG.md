@@ -3,6 +3,9 @@
 # Development SNAPSHOT
 Nothing yet
 
+# 0.9.0
+- Upgrade Akka to 2.5 and Scala to 2.12.4
+
 # 0.8.0
 - Retry Redis operation when the server connection is lost
     - Only retries on NoConnectionException
