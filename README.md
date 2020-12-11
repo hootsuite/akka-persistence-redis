@@ -1,4 +1,6 @@
-# Akka Persistence Redis Plugin
+# No longer actively maintained
+
+## Akka Persistence Redis Plugin
 
 ## What is Akka Persistence Redis plugin?
 This is a plugin for Akka Persistence that uses Redis as backend. It uses [rediscala](https://github.com/etaty/rediscala), an asynchronous Redis client written with Akka and Scala.
